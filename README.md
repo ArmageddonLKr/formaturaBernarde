@@ -58,7 +58,7 @@ supabase secrets set VAPID_SUBJECT=mailto:bernardejorge52@gmail.com --project-re
 
 ### Disparar a função a cada INSERT
 
-No painel do Supabase, vá em **Database → Webhooks → Create a new hook**:
+A extensão `pg_net` (necessária pro recurso de Webhooks aparecer no painel) já foi habilitada. Acesse direto: `https://supabase.com/dashboard/project/fvnwhqelqwoppuhkvpww/database/hooks`, ou pelo menu: **Database → Webhooks → Create a new hook**:
 
 - **Table:** `confirmacoes`
 - **Events:** `Insert`
