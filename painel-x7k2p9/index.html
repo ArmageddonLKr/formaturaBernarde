@@ -53,7 +53,7 @@
   .stat-num{ font-family:'Cormorant Garamond', serif; font-size: 32px; color: var(--gold); }
   .stat-label{ font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ivory-dim); margin-top: 4px; }
 
-  .toolbar{ display:flex; justify-content:flex-end; margin-bottom: 14px; }
+  .toolbar{ display:flex; justify-content:flex-end; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
   .refresh-btn{
     background: var(--card-2); border: 1px solid var(--border); color: var(--gold);
     font-family: 'Jost', sans-serif; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase;
@@ -61,6 +61,7 @@
   }
   .refresh-btn:hover{ border-color: var(--gold-deep); }
   .refresh-btn:disabled{ opacity: 0.5; cursor: default; }
+  .notif-btn.on{ border-color: var(--gold); color: var(--gold); background: rgba(201,171,114,0.1); }
 
   .guest-list{ border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
   .guest-row{
@@ -102,6 +103,7 @@
   </div>
 
   <div class="toolbar">
+    <button class="refresh-btn notif-btn" id="notif-btn">Ativar notificações</button>
     <button class="refresh-btn" id="refresh-btn">Atualizar lista</button>
   </div>
 
@@ -176,8 +178,67 @@ document.getElementById('refresh-btn').addEventListener('click', loadGuestList);
 
 loadGuestList();
 
+// ==== Notificações push (Web Push API) ====
+// Chave publica VAPID: segura para expor no cliente, é assim que a Web Push funciona.
+const VAPID_PUBLIC_KEY = 'BDp5tBBRmAiz03ZfjKKut3URwqCZjpWXOqFKy_bH9U6nAoX_xLBrQiSCsAL9OYGG5vA7KkZJeTr1sc71sWvMWnU';
+
+function urlBase64ToUint8Array(base64String){
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
+}
+
+function setNotifBtnState(active){
+  const btn = document.getElementById('notif-btn');
+  btn.classList.toggle('on', active);
+  btn.textContent = active ? 'Notificações ativadas ✓' : 'Ativar notificações';
+  btn.disabled = active;
+}
+
+async function ativarNotificacoes(){
+  if(!('serviceWorker' in navigator) || !('PushManager' in window)){
+    alert('Este navegador não suporta notificações push.');
+    return;
+  }
+  const btn = document.getElementById('notif-btn');
+  btn.disabled = true;
+  btn.textContent = 'Ativando...';
+  try{
+    const permission = await Notification.requestPermission();
+    if(permission !== 'granted'){
+      setNotifBtnState(false);
+      alert('Permissão de notificação negada.');
+      return;
+    }
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+    });
+    const subJson = sub.toJSON();
+    const { error } = await supabase.from('push_subscriptions').upsert({
+      endpoint: subJson.endpoint,
+      keys: subJson.keys
+    }, { onConflict: 'endpoint' });
+    if(error) throw error;
+    setNotifBtnState(true);
+  }catch(err){
+    setNotifBtnState(false);
+    alert('Não foi possível ativar as notificações agora.');
+    console.error(err);
+  }
+}
+
+document.getElementById('notif-btn').addEventListener('click', ativarNotificacoes);
+
 if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('sw.js');
+  navigator.serviceWorker.register('sw.js').then(async (reg) => {
+    if('PushManager' in window){
+      const existing = await reg.pushManager.getSubscription();
+      if(existing) setNotifBtnState(true);
+    }
+  });
 }
 </script>
 </body>
