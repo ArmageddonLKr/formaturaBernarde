@@ -3,69 +3,50 @@
 Site estático (GitHub Pages) com convite público + formulário de confirmação de presença, e um painel admin secreto para o Bernard acompanhar as confirmações.
 
 - **Evento:** Engenharia de Produção – UFPI, 08/08/2026 (sábado), 19:00/19:30, Auditório Tupperware, Avenida Frei Serafim, 1967.
-- **Banco de dados:** Supabase.
-- **Envio de e-mail:** Resend (via Supabase Edge Function).
+- **Banco de dados:** Supabase — já conectado (projeto `fvnwhqelqwoppuhkvpww`), tabela criada, RLS configurado e credenciais já preenchidas nos dois HTMLs.
+- **Envio de e-mail:** Resend (via Supabase Edge Function) — função já publicada, falta só a chave da API do Resend (passo 2).
 
 ## Estrutura
 
 ```
 /index.html              → convite público + formulário de confirmação
 /painel-x7k2p9/index.html → painel admin (lista completa + estatísticas) — link secreto, não referenciado em nenhum lugar do site público
-/assets/foto-convite.jpg  → foto usada no topo do convite
-/supabase/migrations/0001_confirmacoes.sql → schema da tabela + políticas de RLS
-/supabase/functions/notify-resend/index.ts → Edge Function que envia e-mail ao Bernard a cada confirmação
+/assets/foto-convite.jpg  → arte do convite usada como imagem de topo
+/supabase/migrations/0001_confirmacoes.sql → schema da tabela + políticas de RLS (já aplicado no projeto)
+/supabase/functions/notify-resend/index.ts → Edge Function que envia e-mail ao Bernard a cada confirmação (já publicada)
 ```
 
-## 1. Criar a tabela no Supabase
+## 1. Supabase (já feito)
 
-No seu projeto Supabase, abra o **SQL Editor** e rode o conteúdo de `supabase/migrations/0001_confirmacoes.sql` (ou aplique via CLI/MCP). Isso cria:
+O projeto Supabase já está conectado:
 
-- Tabela `confirmacoes` (`id`, `nome`, `presenca`, `qtd_pessoas`, `mensagem`, `criado_em`)
+- Tabela `confirmacoes` criada (`id`, `nome`, `presenca`, `qtd_pessoas`, `mensagem`, `criado_em`)
 - RLS habilitado, com policy de `INSERT` e `SELECT` liberadas para o papel `anon`
+- `SUPABASE_URL` e `SUPABASE_ANON_KEY` já preenchidos em `index.html` e `painel-x7k2p9/index.html`
 
-A "proteção" do painel admin é apenas o link secreto (pasta `painel-x7k2p9`) — não há autenticação por senha, conforme decidido para esse caso de uso.
+A "proteção" do painel admin é apenas o link secreto (pasta `painel-x7k2p9`) — não há autenticação por senha, conforme decidido para esse caso de uso. A `anon key` é pública por natureza (é isso que o SDK do Supabase usa no navegador) — a segurança real vem das políticas de RLS, já restritas ao necessário.
 
-## 2. Preencher as credenciais do Supabase
+Se precisar reconferir ou trocar de projeto Supabase no futuro, pegue os valores em **Project Settings → API** e atualize as duas constantes no topo do `<script>` de cada HTML.
 
-Pegue em **Project Settings → API** do Supabase:
+## 2. Configurar o Resend (envio de e-mail ao Bernard)
 
-- `Project URL`
-- `anon public` key
+A Edge Function `notify-resend` já está publicada no projeto (sem verificação de JWT, pois é acionada por um Database Webhook interno). Falta só:
 
-E cole nos dois arquivos HTML, no topo do `<script>`:
+1. Criar uma conta grátis em [resend.com](https://resend.com) (não pede cartão).
+2. Gerar uma **API Key** em **API Keys**.
+3. (Opcional, recomendado) Verificar um domínio próprio em **Domains** para enviar de um endereço tipo `convite@seudominio.com`. Sem domínio verificado, use o remetente de teste `onboarding@resend.dev` (funciona, mas só entrega para o e-mail da conta Resend usada — para produção, verifique um domínio).
 
-```js
-const SUPABASE_URL = 'COLOCAR_AQUI';
-const SUPABASE_ANON_KEY = 'COLOCAR_AQUI';
-```
-
-Arquivos a editar:
-- `index.html`
-- `painel-x7k2p9/index.html`
-
-A `anon key` é pública por natureza (é isso que o SDK do Supabase usa no navegador) — a segurança real vem das políticas de RLS, já restritas ao necessário.
-
-## 3. Configurar o Resend (envio de e-mail ao Bernard)
-
-1. Crie uma conta grátis em [resend.com](https://resend.com) (não pede cartão).
-2. Gere uma **API Key** em **API Keys**.
-3. (Opcional, recomendado) Verifique um domínio próprio em **Domains** para poder enviar de um endereço tipo `convite@seudominio.com`. Sem domínio verificado, use o remetente de teste `onboarding@resend.dev` (funciona, mas só entrega para o e-mail da conta Resend usada — para produção, verifique um domínio).
-
-### Deploy da Edge Function
+### Configurar os secrets da função (nunca hardcode a API key no HTML)
 
 Com a Supabase CLI logada no projeto:
 
 ```bash
-supabase functions deploy notify-resend
+supabase secrets set RESEND_API_KEY=SEU_TOKEN_RESEND --project-ref fvnwhqelqwoppuhkvpww
+supabase secrets set NOTIFY_TO_EMAIL=bernardejorge52@gmail.com --project-ref fvnwhqelqwoppuhkvpww
+supabase secrets set NOTIFY_FROM_EMAIL=onboarding@resend.dev --project-ref fvnwhqelqwoppuhkvpww
 ```
 
-### Configurar os secrets da função (nunca hardcode a API key no HTML)
-
-```bash
-supabase secrets set RESEND_API_KEY=SEU_TOKEN_RESEND
-supabase secrets set NOTIFY_TO_EMAIL=bernardejorge52@gmail.com
-supabase secrets set NOTIFY_FROM_EMAIL=onboarding@resend.dev
-```
+(Ou pelo painel do Supabase: **Edge Functions → notify-resend → Secrets**.)
 
 ### Disparar a função a cada INSERT
 
@@ -80,7 +61,7 @@ Assim, toda vez que alguém confirmar presença, o Bernard recebe um e-mail em `
 - Assunto: `Nova confirmação: [nome] — [Sim/Não]`
 - Corpo: nome, presença, quantidade de pessoas e mensagem (se houver)
 
-## 4. Publicar no GitHub Pages
+## 3. Publicar no GitHub Pages
 
 1. Faça push deste repositório para o GitHub (branch `main`).
 2. Em **Settings → Pages**, selecione a branch `main` e pasta raiz (`/`).
@@ -93,5 +74,6 @@ Assim, toda vez que alguém confirmar presença, o Bernard recebe um e-mail em `
 - [x] Página pública sem lista de confirmados visível
 - [x] Painel admin em pasta de nome aleatório, com lista completa e estatísticas
 - [x] Nenhum link do site público aponta para o admin
-- [ ] E-mail automático configurado para o Bernard a cada nova confirmação (depende de você preencher as credenciais do Resend e configurar o webhook — passo 3)
-- [x] README com passo a passo de: criar tabela no Supabase, configurar RLS, configurar Resend, subir no GitHub Pages
+- [x] Tabela, RLS e credenciais do Supabase já configuradas e conectadas
+- [ ] E-mail automático configurado para o Bernard a cada nova confirmação (Edge Function já publicada — falta só a chave do Resend e o webhook, passo 2)
+- [x] README com passo a passo de: Supabase, Resend, subir no GitHub Pages

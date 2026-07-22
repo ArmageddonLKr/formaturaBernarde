@@ -31,72 +31,12 @@
   .wrap{max-width: 720px; margin: 0 auto; padding: 0 0 80px;}
 
   .hero{
-    position: relative;
-    padding: 56px 32px 40px;
-    background: radial-gradient(120% 100% at 50% 0%, #1a1912 0%, #0a0a08 65%);
     border-bottom: 1px solid var(--border);
-    text-align: center;
-    overflow:hidden;
   }
-  .eyebrow-top{
-    font-size: 12px;
-    letter-spacing: 0.18em;
-    color: var(--ivory-dim);
-    text-transform: uppercase;
-    margin-bottom: 28px;
+  .hero-img{
+    width: 100%;
+    display: block;
   }
-  .photo{
-    width: 168px; height: 168px; border-radius: 50%;
-    object-fit: cover; object-position: 50% 20%;
-    margin: 0 auto 22px;
-    border: 1px solid var(--gold-deep);
-    padding: 5px;
-    display:block;
-  }
-  .invite-line{
-    font-family: 'Cormorant Garamond', serif;
-    font-style: italic;
-    font-size: 17px;
-    color: var(--ivory-dim);
-    letter-spacing: 0.04em;
-    margin: 0 0 6px;
-  }
-  h1.name{
-    font-family: 'Cormorant Garamond', serif;
-    font-weight: 500;
-    font-size: 56px;
-    letter-spacing: 0.06em;
-    margin: 0;
-    color: var(--ivory);
-    line-height: 1.05;
-  }
-  .flourish{
-    font-family: 'Mrs Saint Delafield', cursive;
-    font-size: 52px;
-    color: var(--gold);
-    margin: -6px 0 18px;
-    line-height: 1;
-  }
-  .swoosh{ width: 220px; height: 24px; margin: 0 auto 26px; display:block; }
-  .story{
-    font-family: 'Cormorant Garamond', serif;
-    font-style: italic;
-    font-size: 17px;
-    line-height: 1.7;
-    color: var(--ivory-dim);
-    max-width: 480px;
-    margin: 0 auto 28px;
-  }
-  .story strong{ color: var(--ivory); font-weight: 500; }
-
-  .details{
-    display:flex; justify-content:center; gap: 44px; flex-wrap: wrap;
-    padding-top: 22px; border-top: 1px solid var(--border);
-    max-width: 480px; margin: 0 auto;
-  }
-  .detail-label{ font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--gold); margin-bottom: 6px; }
-  .detail-value{ font-family: 'Cormorant Garamond', serif; font-size: 20px; color: var(--ivory); }
-  .detail-sub{ font-size: 12px; color: var(--ivory-dim); margin-top: 2px; }
 
   section{ padding: 44px 28px; }
   .section-head{ text-align:center; margin-bottom: 30px; }
@@ -167,9 +107,6 @@
   footer{ text-align:center; padding: 30px 20px 0; color: var(--ivory-dim); font-size: 12px; letter-spacing: 0.08em; }
 
   @media (max-width: 480px){
-    h1.name{ font-size: 42px; }
-    .flourish{ font-size: 40px; }
-    .details{ gap: 26px; }
     section{ padding: 36px 18px; }
   }
 </style>
@@ -178,28 +115,7 @@
 <div class="wrap">
 
   <div class="hero">
-    <div class="eyebrow-top">Engenharia de Produção · UFPI</div>
-    <img class="photo" src="assets/foto-convite.jpg" alt="Formando">
-    <p class="invite-line">Convido você para a</p>
-    <h1 class="name">Minha</h1>
-    <div class="flourish">formatura</div>
-    <svg class="swoosh" viewBox="0 0 220 24" xmlns="http://www.w3.org/2000/svg">
-      <path d="M2 4 C 60 26, 160 26, 218 4" stroke="#c9ab72" stroke-width="1.4" fill="none" stroke-linecap="round"/>
-    </svg>
-    <p class="story">Com grande alegria e gratidão, convido você para celebrar um dos momentos mais especiais da minha vida. Sua presença tornará este momento ainda mais inesquecível. <strong>Conto com você para celebrar este sonho realizado.</strong></p>
-
-    <div class="details">
-      <div>
-        <div class="detail-label">Data</div>
-        <div class="detail-value">08/08/2026</div>
-        <div class="detail-sub">Sábado · 19:00</div>
-      </div>
-      <div>
-        <div class="detail-label">Local</div>
-        <div class="detail-value">Auditório Tupperware</div>
-        <div class="detail-sub">Avenida Frei Serafim, 1967</div>
-      </div>
-    </div>
+    <img class="hero-img" src="assets/foto-convite.jpg" alt="Convite de formatura — Engenharia de Produção UFPI, 08/08/2026, Auditório Tupperware">
   </div>
 
   <section id="rsvp-section">
@@ -245,9 +161,9 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-// ==== Credenciais do Supabase — preencher antes de publicar ====
-const SUPABASE_URL = 'COLOCAR_AQUI';
-const SUPABASE_ANON_KEY = 'COLOCAR_AQUI';
+// ==== Credenciais do Supabase (projeto já criado) ====
+const SUPABASE_URL = 'https://fvnwhqelqwoppuhkvpww.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2bndocWVscXdvcHB1aGt2cHd3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMzMTEzNTEsImV4cCI6MjA5ODg4NzM1MX0.g5vZxug1pqydYKLhtXEKiBEM7b6Q20m4M93OePw0jJU';
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let attending = null;
