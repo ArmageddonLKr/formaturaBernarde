@@ -81,6 +81,27 @@
   .guest-time{ font-size: 11px; color: var(--ivory-dim); margin-top: 4px; }
   .empty-state{ text-align:center; color: var(--ivory-dim); font-size: 14px; padding: 30px 20px; font-family:'Cormorant Garamond', serif; font-style: italic; }
   .loading{ text-align:center; color: var(--ivory-dim); font-size: 13px; padding: 20px; }
+
+  .install-toast{
+    position: fixed; left: 16px; right: 16px; bottom: 16px;
+    max-width: 420px; margin: 0 auto;
+    background: var(--card); border: 1px solid var(--gold-deep); border-radius: 6px;
+    padding: 16px 18px; box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    display: none; gap: 10px; align-items: center; z-index: 1000;
+  }
+  .install-toast.show{ display: flex; }
+  .install-toast-icon{ width: 40px; height: 40px; border-radius: 8px; flex-shrink: 0; }
+  .install-toast-text{ flex: 1; font-size: 13px; color: var(--ivory); line-height: 1.4; }
+  .install-toast-actions{ display:flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
+  .install-toast-btn{
+    background: var(--gold); color: #1a1607; border:none; border-radius: 3px;
+    font-family:'Jost', sans-serif; font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase;
+    padding: 8px 12px; cursor: pointer; white-space: nowrap;
+  }
+  .install-toast-dismiss{
+    background: transparent; color: var(--ivory-dim); border:none;
+    font-family:'Jost', sans-serif; font-size: 11px; cursor: pointer; padding: 4px;
+  }
 </style>
 </head>
 <body>
@@ -109,6 +130,15 @@
 
   <div class="guest-list" id="guest-list">
     <div class="loading">Carregando lista...</div>
+  </div>
+</div>
+
+<div class="install-toast" id="install-toast">
+  <img class="install-toast-icon" src="../assets/icons/icon-192.png" alt="">
+  <div class="install-toast-text">Quer instalar esse painel como um app no seu celular? Fica mais rápido de abrir.</div>
+  <div class="install-toast-actions">
+    <button class="install-toast-btn" id="install-btn">Instalar</button>
+    <button class="install-toast-dismiss" id="install-dismiss">Agora não</button>
   </div>
 </div>
 
@@ -240,6 +270,36 @@ if('serviceWorker' in navigator){
     }
   });
 }
+
+// ==== Toast de instalar como app (PWA) ====
+let deferredInstallPrompt = null;
+const installToast = document.getElementById('install-toast');
+
+window.addEventListener('beforeinstallprompt', (event) => {
+  event.preventDefault();
+  const jaEstaInstalado = window.matchMedia('(display-mode: standalone)').matches;
+  const jaDispensou = sessionStorage.getItem('install-toast-dismissed');
+  if(jaEstaInstalado || jaDispensou) return;
+  deferredInstallPrompt = event;
+  installToast.classList.add('show');
+});
+
+document.getElementById('install-btn').addEventListener('click', async () => {
+  installToast.classList.remove('show');
+  if(!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  await deferredInstallPrompt.userChoice;
+  deferredInstallPrompt = null;
+});
+
+document.getElementById('install-dismiss').addEventListener('click', () => {
+  installToast.classList.remove('show');
+  sessionStorage.setItem('install-toast-dismissed', '1');
+});
+
+window.addEventListener('appinstalled', () => {
+  installToast.classList.remove('show');
+});
 </script>
 </body>
 </html>
