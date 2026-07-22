@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bernard — Confirmações da Formatura</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0a0a08">
+<link rel="icon" href="../assets/icons/favicon-32.png">
+<link rel="apple-touch-icon" href="../assets/icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Bernard">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #0a0a08;
+    --card: #141310;
+    --card-2: #1b1a15;
+    --ivory: #f2ede1;
+    --ivory-dim: #b9b2a1;
+    --gold: #c9ab72;
+    --gold-deep: #8f7440;
+    --border: #322f24;
+    --danger: #c98f72;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background: var(--bg);
+    color: var(--ivory);
+    font-family: 'Jost', sans-serif;
+    font-weight: 300;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap{max-width: 720px; margin: 0 auto; padding: 44px 28px 80px;}
+
+  .page-head{ text-align:center; margin-bottom: 34px; }
+  .eyebrow-top{
+    font-size: 12px; letter-spacing: 0.18em; color: var(--ivory-dim);
+    text-transform: uppercase; margin-bottom: 10px;
+  }
+  .page-title{
+    font-family: 'Cormorant Garamond', serif; font-weight: 500;
+    font-size: 34px; margin: 0; color: var(--ivory);
+  }
+
+  .stats-row{ display:flex; gap: 14px; margin-bottom: 30px; }
+  .stat{ flex:1; text-align:center; background: var(--card); border:1px solid var(--border); border-radius: 4px; padding: 18px 8px; }
+  .stat-num{ font-family:'Cormorant Garamond', serif; font-size: 32px; color: var(--gold); }
+  .stat-label{ font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ivory-dim); margin-top: 4px; }
+
+  .toolbar{ display:flex; justify-content:flex-end; margin-bottom: 14px; }
+  .refresh-btn{
+    background: var(--card-2); border: 1px solid var(--border); color: var(--gold);
+    font-family: 'Jost', sans-serif; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 10px 18px; border-radius: 3px; cursor: pointer; transition: border-color .2s;
+  }
+  .refresh-btn:hover{ border-color: var(--gold-deep); }
+  .refresh-btn:disabled{ opacity: 0.5; cursor: default; }
+
+  .guest-list{ border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
+  .guest-row{
+    display:flex; justify-content: space-between; align-items:flex-start; gap: 12px;
+    padding: 15px 20px; border-bottom: 1px solid var(--border);
+    background: var(--card);
+  }
+  .guest-row:last-child{ border-bottom:none; }
+  .guest-row:nth-child(even){ background: var(--card-2); }
+  .guest-name{ font-family:'Cormorant Garamond', serif; font-size: 18px; color: var(--ivory); }
+  .guest-status{ font-size: 12px; letter-spacing: 0.04em; margin-top: 2px; }
+  .guest-status.yes{ color: var(--gold); }
+  .guest-status.no{ color: var(--danger); }
+  .guest-msg{ font-size: 12px; color: var(--ivory-dim); font-style: italic; margin-top: 6px; max-width: 400px; }
+  .guest-meta{ text-align:right; white-space: nowrap; flex-shrink: 0; }
+  .guest-qty{ font-size: 12px; color: var(--gold); letter-spacing: 0.04em; }
+  .guest-time{ font-size: 11px; color: var(--ivory-dim); margin-top: 4px; }
+  .empty-state{ text-align:center; color: var(--ivory-dim); font-size: 14px; padding: 30px 20px; font-family:'Cormorant Garamond', serif; font-style: italic; }
+  .loading{ text-align:center; color: var(--ivory-dim); font-size: 13px; padding: 20px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="page-head">
+    <div class="eyebrow-top">Painel admin</div>
+    <h1 class="page-title">Confirmações da formatura</h1>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat">
+      <div class="stat-num" id="stat-confirmed">0</div>
+      <div class="stat-label">Confirmações</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num" id="stat-people">0</div>
+      <div class="stat-label">Pessoas</div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <button class="refresh-btn" id="refresh-btn">Atualizar lista</button>
+  </div>
+
+  <div class="guest-list" id="guest-list">
+    <div class="loading">Carregando lista...</div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+// ==== Credenciais do Supabase (projeto já criado) ====
+const SUPABASE_URL = 'https://fvnwhqelqwoppuhkvpww.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2bndocWVscXdvcHB1aGt2cHd3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMzMTEzNTEsImV4cCI6MjA5ODg4NzM1MX0.g5vZxug1pqydYKLhtXEKiBEM7b6Q20m4M93OePw0jJU';
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+function escapeHtml(str){
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function formatDate(iso){
+  return new Date(iso).toLocaleString('pt-BR');
+}
+
+async function loadGuestList(){
+  const listEl = document.getElementById('guest-list');
+  const btn = document.getElementById('refresh-btn');
+  btn.disabled = true;
+  listEl.innerHTML = '<div class="loading">Carregando lista...</div>';
+
+  try{
+    const { data, error } = await supabase
+      .from('confirmacoes')
+      .select('*')
+      .order('criado_em', { ascending: false });
+
+    if(error) throw error;
+
+    const entries = data || [];
+    const confirmed = entries.filter(e => e.presenca);
+    const totalPeople = confirmed.reduce((sum, e) => sum + (e.qtd_pessoas || 0), 0);
+    document.getElementById('stat-confirmed').textContent = confirmed.length;
+    document.getElementById('stat-people').textContent = totalPeople;
+
+    if(entries.length === 0){
+      listEl.innerHTML = '<div class="empty-state">Ninguém confirmou ainda.</div>';
+    } else {
+      listEl.innerHTML = entries.map(e => `
+        <div class="guest-row">
+          <div>
+            <div class="guest-name">${escapeHtml(e.nome)}</div>
+            <div class="guest-status ${e.presenca ? 'yes' : 'no'}">${e.presenca ? 'Vai comparecer' : 'Não poderá ir'}</div>
+            ${e.mensagem ? `<div class="guest-msg">"${escapeHtml(e.mensagem)}"</div>` : ''}
+          </div>
+          <div class="guest-meta">
+            <div class="guest-qty">${e.presenca ? (e.qtd_pessoas + (e.qtd_pessoas === 1 ? ' pessoa' : ' pessoas')) : '—'}</div>
+            <div class="guest-time">${formatDate(e.criado_em)}</div>
+          </div>
+        </div>
+      `).join('');
+    }
+  }catch(err){
+    listEl.innerHTML = '<div class="empty-state">Não foi possível carregar a lista agora.</div>';
+    console.error(err);
+  }finally{
+    btn.disabled = false;
+  }
+}
+
+document.getElementById('refresh-btn').addEventListener('click', loadGuestList);
+
+loadGuestList();
+
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js');
+}
+</script>
+</body>
+</html>
