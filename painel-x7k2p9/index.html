@@ -144,10 +144,20 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
+  if(typeof window.supabase === 'undefined'){
+    document.write('<script src="https://unpkg.com/@supabase/supabase-js@2"><\/script>');
+  }
+</script>
+<script>
 // ==== Credenciais do Supabase (projeto já criado) ====
 const SUPABASE_URL = 'https://fvnwhqelqwoppuhkvpww.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2bndocWVscXdvcHB1aGt2cHd3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMzMTEzNTEsImV4cCI6MjA5ODg4NzM1MX0.g5vZxug1pqydYKLhtXEKiBEM7b6Q20m4M93OePw0jJU';
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let supabase = null;
+try{
+  supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+}catch(err){
+  console.error('Não foi possível iniciar a conexão com o Supabase', err);
+}
 
 function escapeHtml(str){
   const div = document.createElement('div');

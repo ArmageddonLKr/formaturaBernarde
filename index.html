@@ -163,6 +163,11 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
+  if(typeof window.supabase === 'undefined'){
+    document.write('<script src="https://unpkg.com/@supabase/supabase-js@2"><\/script>');
+  }
+</script>
+<script>
 let attending = null;
 let qty = 1;
 
