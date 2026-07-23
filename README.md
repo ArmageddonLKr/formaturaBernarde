@@ -18,6 +18,7 @@ Site estático (GitHub Pages) com convite público + formulário de confirmaçã
 /supabase/migrations/0001_confirmacoes.sql     → schema da tabela de confirmações + RLS (já aplicado)
 /supabase/migrations/0002_push_subscriptions.sql → schema das assinaturas de push + RLS (já aplicado)
 /supabase/migrations/0004_push_subscriptions_select_policy.sql → policy de SELECT que faltava pro upsert de assinaturas funcionar (já aplicado)
+/supabase/migrations/0005_enable_realtime_confirmacoes.sql → habilita Realtime na tabela de confirmações, pro painel atualizar a lista sozinho (já aplicado)
 /supabase/functions/notify-push/index.ts       → Edge Function que envia a notificação push a cada confirmação (já publicada)
 ```
 
