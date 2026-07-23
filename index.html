@@ -147,16 +147,16 @@
 
         <label>Você vai comparecer?</label>
         <div class="attend-row">
-          <div class="attend-btn" id="btn-yes" onclick="setAttend(true)">Sim, estarei lá</div>
-          <div class="attend-btn" id="btn-no" onclick="setAttend(false)">Não poderei ir</div>
+          <div class="attend-btn" id="btn-yes">Sim, estarei lá</div>
+          <div class="attend-btn" id="btn-no">Não poderei ir</div>
         </div>
 
         <div id="qty-block">
           <label>Número de pessoas (incluindo você)</label>
           <div class="qty-row">
-            <div class="qty-btn" onclick="changeQty(-1)">−</div>
+            <div class="qty-btn" id="qty-minus">−</div>
             <div class="qty-num" id="qty-display">1</div>
-            <div class="qty-btn" onclick="changeQty(1)">+</div>
+            <div class="qty-btn" id="qty-plus">+</div>
           </div>
         </div>
 
@@ -197,6 +197,11 @@ function changeQty(delta){
   qty = Math.max(1, Math.min(10, qty + delta));
   document.getElementById('qty-display').textContent = qty;
 }
+
+document.getElementById('btn-yes').addEventListener('click', function(){ setAttend(true); });
+document.getElementById('btn-no').addEventListener('click', function(){ setAttend(false); });
+document.getElementById('qty-minus').addEventListener('click', function(){ changeQty(-1); });
+document.getElementById('qty-plus').addEventListener('click', function(){ changeQty(1); });
 
 // ==== Credenciais do Supabase (projeto já criado) ====
 const SUPABASE_URL = 'https://fvnwhqelqwoppuhkvpww.supabase.co';
