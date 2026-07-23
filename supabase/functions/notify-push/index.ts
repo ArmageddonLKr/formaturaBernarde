@@ -37,12 +37,15 @@ Deno.serve(async (req: Request) => {
     const { data: subs, error } = await supabase.from("push_subscriptions").select("id, endpoint, keys");
     if (error) throw error;
 
+    console.log(`notify-push: ${(subs ?? []).length} assinatura(s) encontrada(s) para notificar`);
+
     const title = `Nova confirmação: ${nome}`;
     const body = presenca
       ? `Vai comparecer — ${qtdPessoas} ${qtdPessoas === 1 ? "pessoa" : "pessoas"}`
       : "Não poderá comparecer";
 
     const staleIds: string[] = [];
+    let sentCount = 0;
 
     await Promise.allSettled(
       (subs ?? []).map(async (s: { id: string; endpoint: string; keys: unknown }) => {
@@ -51,7 +54,12 @@ Deno.serve(async (req: Request) => {
             { endpoint: s.endpoint, keys: s.keys } as any,
             JSON.stringify({ title, body }),
           );
+          sentCount++;
+          console.log(`notify-push: enviado com sucesso para subscription ${s.id}`);
         } catch (err: any) {
+          console.error(
+            `notify-push: falha ao enviar para subscription ${s.id} (statusCode=${err?.statusCode}): ${err?.body ?? err?.message ?? err}`,
+          );
           if (err?.statusCode === 404 || err?.statusCode === 410) {
             staleIds.push(s.id);
           }
@@ -61,9 +69,13 @@ Deno.serve(async (req: Request) => {
 
     if (staleIds.length > 0) {
       await supabase.from("push_subscriptions").delete().in("id", staleIds);
+      console.log(`notify-push: removidas ${staleIds.length} subscription(s) expirada(s)`);
     }
 
-    return new Response(JSON.stringify({ ok: true, sent: (subs ?? []).length - staleIds.length }), { status: 200 });
+    return new Response(
+      JSON.stringify({ ok: true, found: (subs ?? []).length, sent: sentCount, stale: staleIds.length }),
+      { status: 200 },
+    );
   } catch (err) {
     return new Response(JSON.stringify({ error: String(err) }), { status: 500 });
   }
