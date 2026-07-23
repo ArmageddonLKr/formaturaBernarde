@@ -159,23 +159,22 @@
   </div>
 </div>
 
+<!-- Lib do Supabase incluída no próprio site (em vez de CDN externo) — ver
+     index.html na raiz pra mais detalhes do porquê. -->
+<script src="../assets/vendor/supabase-js-2.110.8.js"></script>
 <script>
 // ==== Credenciais do Supabase (projeto já criado) ====
 const SUPABASE_URL = 'https://fvnwhqelqwoppuhkvpww.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2bndocWVscXdvcHB1aGt2cHd3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMzMTEzNTEsImV4cCI6MjA5ODg4NzM1MX0.g5vZxug1pqydYKLhtXEKiBEM7b6Q20m4M93OePw0jJU';
-let supabase = null;
-
-// Carrega a lib do Supabase de forma assíncrona (sem document.write, que o
-// Chrome bloqueia em conexões lentas/2G), com CDN alternativo se o
-// principal falhar.
-function loadScript(src){
-  return new Promise(function(resolve, reject){
-    const s = document.createElement('script');
-    s.src = src;
-    s.onload = resolve;
-    s.onerror = function(){ reject(new Error('Falha ao carregar ' + src)); };
-    document.head.appendChild(s);
-  });
+// Nome diferente de "supabase" de propósito: a própria lib declara um
+// `var supabase` global, e uma variável nossa com o mesmo nome (let/const)
+// entra em conflito com isso — erro de sintaxe garantido assim que a lib
+// carrega com sucesso (foi essa a causa raiz de tudo até aqui).
+let supabaseClient = null;
+try{
+  supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+}catch(err){
+  console.error('Não foi possível iniciar a conexão com o Supabase', err);
 }
 
 function escapeHtml(str){
@@ -195,8 +194,8 @@ async function loadGuestList(){
   listEl.innerHTML = '<div class="loading">Carregando lista...</div>';
 
   try{
-    if(!supabase) throw new Error('Supabase ainda não conectado');
-    const { data, error } = await supabase
+    if(!supabaseClient) throw new Error('Supabase ainda não conectado');
+    const { data, error } = await supabaseClient
       .from('confirmacoes')
       .select('*')
       .order('criado_em', { ascending: false });
@@ -236,17 +235,7 @@ async function loadGuestList(){
 
 document.getElementById('refresh-btn').addEventListener('click', loadGuestList);
 
-(typeof window.supabase !== 'undefined'
-  ? Promise.resolve()
-  : loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2')
-      .catch(function(){ return loadScript('https://unpkg.com/@supabase/supabase-js@2'); })
-).then(function(){
-  supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-}).catch(function(err){
-  console.error('Não foi possível carregar/iniciar o Supabase', err);
-}).finally(function(){
-  loadGuestList();
-});
+loadGuestList();
 
 // ==== Notificações push (Web Push API) ====
 // Chave publica VAPID: segura para expor no cliente, é assim que a Web Push funciona.
@@ -287,7 +276,7 @@ async function ativarNotificacoes(){
       applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
     });
     const subJson = sub.toJSON();
-    const { error } = await supabase.from('push_subscriptions').upsert({
+    const { error } = await supabaseClient.from('push_subscriptions').upsert({
       endpoint: subJson.endpoint,
       keys: subJson.keys
     }, { onConflict: 'endpoint' });
