@@ -102,9 +102,26 @@
     background: transparent; color: var(--ivory-dim); border:none;
     font-family:'Jost', sans-serif; font-size: 11px; cursor: pointer; padding: 4px;
   }
+
+  .js-error-banner{
+    display:none; position: sticky; top:0; z-index: 999;
+    background: var(--danger); color: #2a1710; text-align:center;
+    font-size: 13px; padding: 10px 16px; line-height: 1.4;
+  }
 </style>
 </head>
 <body>
+<div class="js-error-banner" id="js-error-banner"></div>
+<script>
+  window.addEventListener('error', function(e){
+    var el = document.getElementById('js-error-banner');
+    if(!el) return;
+    var detalhe = e && e.message ? e.message : 'erro desconhecido';
+    if(e && e.filename){ detalhe += ' (' + e.filename.split('/').pop() + ':' + e.lineno + ')'; }
+    el.textContent = 'Algo deu errado: ' + detalhe + '. Puxe a tela pra baixo pra atualizar, ou feche e abra de novo.';
+    el.style.display = 'block';
+  });
+</script>
 <div class="wrap">
 
   <div class="page-head">
@@ -142,21 +159,23 @@
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script>
-  if(typeof window.supabase === 'undefined'){
-    document.write('<script src="https://unpkg.com/@supabase/supabase-js@2"><\/script>');
-  }
-</script>
 <script>
 // ==== Credenciais do Supabase (projeto já criado) ====
 const SUPABASE_URL = 'https://fvnwhqelqwoppuhkvpww.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2bndocWVscXdvcHB1aGt2cHd3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMzMTEzNTEsImV4cCI6MjA5ODg4NzM1MX0.g5vZxug1pqydYKLhtXEKiBEM7b6Q20m4M93OePw0jJU';
 let supabase = null;
-try{
-  supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-}catch(err){
-  console.error('Não foi possível iniciar a conexão com o Supabase', err);
+
+// Carrega a lib do Supabase de forma assíncrona (sem document.write, que o
+// Chrome bloqueia em conexões lentas/2G), com CDN alternativo se o
+// principal falhar.
+function loadScript(src){
+  return new Promise(function(resolve, reject){
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = resolve;
+    s.onerror = function(){ reject(new Error('Falha ao carregar ' + src)); };
+    document.head.appendChild(s);
+  });
 }
 
 function escapeHtml(str){
@@ -176,6 +195,7 @@ async function loadGuestList(){
   listEl.innerHTML = '<div class="loading">Carregando lista...</div>';
 
   try{
+    if(!supabase) throw new Error('Supabase ainda não conectado');
     const { data, error } = await supabase
       .from('confirmacoes')
       .select('*')
@@ -207,7 +227,7 @@ async function loadGuestList(){
       `).join('');
     }
   }catch(err){
-    listEl.innerHTML = '<div class="empty-state">Não foi possível carregar a lista agora.</div>';
+    listEl.innerHTML = '<div class="empty-state">Não foi possível carregar a lista agora. Toque em "Atualizar lista" para tentar de novo.</div>';
     console.error(err);
   }finally{
     btn.disabled = false;
@@ -216,7 +236,17 @@ async function loadGuestList(){
 
 document.getElementById('refresh-btn').addEventListener('click', loadGuestList);
 
-loadGuestList();
+(typeof window.supabase !== 'undefined'
+  ? Promise.resolve()
+  : loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2')
+      .catch(function(){ return loadScript('https://unpkg.com/@supabase/supabase-js@2'); })
+).then(function(){
+  supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+}).catch(function(err){
+  console.error('Não foi possível carregar/iniciar o Supabase', err);
+}).finally(function(){
+  loadGuestList();
+});
 
 // ==== Notificações push (Web Push API) ====
 // Chave publica VAPID: segura para expor no cliente, é assim que a Web Push funciona.
@@ -272,24 +302,29 @@ async function ativarNotificacoes(){
 
 document.getElementById('notif-btn').addEventListener('click', ativarNotificacoes);
 
+// Registra o service worker só depois que a página terminar de carregar,
+// pra não competir por rede/tempo com o carregamento do Supabase (o que
+// já causou uma corrida de tempo estranha em teste automatizado).
 if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('sw.js').then(async (reg) => {
-    if('PushManager' in window){
-      const existing = await reg.pushManager.getSubscription();
-      if(existing) setNotifBtnState(true);
-    }
-    // Verifica na hora se há uma versão nova do app, em vez de esperar
-    // o navegador checar sozinho (o que pode levar até 24h).
-    reg.update();
-  });
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').then(async (reg) => {
+      if('PushManager' in window){
+        const existing = await reg.pushManager.getSubscription();
+        if(existing) setNotifBtnState(true);
+      }
+      // Verifica na hora se há uma versão nova do app, em vez de esperar
+      // o navegador checar sozinho (o que pode levar até 24h).
+      reg.update();
+    });
 
-  // Quando uma versão nova assume o controle da página, recarrega
-  // automaticamente pra garantir que o app mais recente seja exibido.
-  let refreshingAfterUpdate = false;
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if(refreshingAfterUpdate) return;
-    refreshingAfterUpdate = true;
-    window.location.reload();
+    // Quando uma versão nova assume o controle da página, recarrega
+    // automaticamente pra garantir que o app mais recente seja exibido.
+    let refreshingAfterUpdate = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if(refreshingAfterUpdate) return;
+      refreshingAfterUpdate = true;
+      window.location.reload();
+    });
   });
 }
 

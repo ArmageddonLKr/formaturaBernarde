@@ -1,24 +1,31 @@
-const CACHE_NAME = 'painel-bernard-v4';
+const CACHE_NAME = 'painel-bernard-v5';
 const APP_SHELL = ['./', './index.html', './manifest.json', '../assets/icons/icon-192.png', '../assets/icons/icon-512.png'];
 
+// Marca se já existia um service worker ativo antes deste — só nesse caso
+// é uma ATUALIZAÇÃO de verdade. Numa instalação nova (primeira visita),
+// self.registration.active ainda é nulo aqui.
+let isUpdate = false;
+
 self.addEventListener('install', (event) => {
+  isUpdate = !!self.registration.active;
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)));
   self.skipWaiting();
 });
 
-// Ao ativar uma versão nova, assume o controle e recarrega sozinho qualquer
-// janela do painel que já esteja aberta — assim quem estava preso numa
-// versão antiga recebe a atualização assim que o navegador detectar essa
-// troca (sem precisar fechar/reabrir o app nem apagar nada, já que os dados
-// ficam salvos no Supabase, não no aparelho).
+// Só força o recarregamento de janelas já abertas quando é uma atualização
+// de verdade — numa instalação nova isso só atrapalharia (recarregaria a
+// página bem no meio do primeiro carregamento, cancelando o que já estava
+// em andamento, como buscar a lib do Supabase).
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     (async () => {
       const keys = await caches.keys();
       await Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)));
       await self.clients.claim();
-      const openClients = await self.clients.matchAll({ type: 'window' });
-      openClients.forEach((client) => client.navigate(client.url));
+      if(isUpdate){
+        const openClients = await self.clients.matchAll({ type: 'window' });
+        openClients.forEach((client) => client.navigate(client.url));
+      }
     })()
   );
 });
