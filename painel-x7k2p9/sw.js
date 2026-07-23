@@ -1,4 +1,4 @@
-const CACHE_NAME = 'painel-bernard-v2';
+const CACHE_NAME = 'painel-bernard-v3';
 const APP_SHELL = ['./', './index.html', './manifest.json', '../assets/icons/icon-192.png', '../assets/icons/icon-512.png'];
 
 self.addEventListener('install', (event) => {
@@ -13,14 +13,24 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// App shell em cache para abrir instantaneamente; dados do Supabase sempre vêm da rede.
+// App shell: busca sempre a versão mais nova na rede primeiro (e atualiza o
+// cache com ela); só usa o cache se estiver offline. Assim quem já instalou
+// o painel recebe as atualizações do site sozinho, sem precisar reinstalar.
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET' || !APP_SHELL.some((p) => req.url.endsWith(p.replace('./', '')))) {
     event.respondWith(fetch(req));
     return;
   }
-  event.respondWith(caches.match(req).then((cached) => cached || fetch(req)));
+  event.respondWith(
+    fetch(req)
+      .then((res) => {
+        const resClone = res.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(req, resClone));
+        return res;
+      })
+      .catch(() => caches.match(req))
+  );
 });
 
 self.addEventListener('push', (event) => {

@@ -278,6 +278,18 @@ if('serviceWorker' in navigator){
       const existing = await reg.pushManager.getSubscription();
       if(existing) setNotifBtnState(true);
     }
+    // Verifica na hora se há uma versão nova do app, em vez de esperar
+    // o navegador checar sozinho (o que pode levar até 24h).
+    reg.update();
+  });
+
+  // Quando uma versão nova assume o controle da página, recarrega
+  // automaticamente pra garantir que o app mais recente seja exibido.
+  let refreshingAfterUpdate = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if(refreshingAfterUpdate) return;
+    refreshingAfterUpdate = true;
+    window.location.reload();
   });
 }
 
