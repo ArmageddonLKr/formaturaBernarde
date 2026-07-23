@@ -1,4 +1,4 @@
-const CACHE_NAME = 'painel-bernard-v3';
+const CACHE_NAME = 'painel-bernard-v4';
 const APP_SHELL = ['./', './index.html', './manifest.json', '../assets/icons/icon-192.png', '../assets/icons/icon-512.png'];
 
 self.addEventListener('install', (event) => {
@@ -6,11 +6,21 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
+// Ao ativar uma versão nova, assume o controle e recarrega sozinho qualquer
+// janela do painel que já esteja aberta — assim quem estava preso numa
+// versão antiga recebe a atualização assim que o navegador detectar essa
+// troca (sem precisar fechar/reabrir o app nem apagar nada, já que os dados
+// ficam salvos no Supabase, não no aparelho).
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))))
+    (async () => {
+      const keys = await caches.keys();
+      await Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)));
+      await self.clients.claim();
+      const openClients = await self.clients.matchAll({ type: 'window' });
+      openClients.forEach((client) => client.navigate(client.url));
+    })()
   );
-  self.clients.claim();
 });
 
 // App shell: busca sempre a versão mais nova na rede primeiro (e atualiza o
