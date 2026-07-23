@@ -361,10 +361,10 @@ if('serviceWorker' in navigator){
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').then(async (reg) => {
       await renovarSubscription(reg);
-      // Confere de novo a cada 2 minutos, enquanto o painel ficar aberto —
-      // pega uma assinatura que expire no meio de uma sequência de
-      // confirmações, sem depender de fechar e reabrir o app.
-      setInterval(() => renovarSubscription(reg), 2 * 60 * 1000);
+      // Confere de novo a cada 20s, enquanto o painel ficar aberto — pega
+      // uma assinatura que expire no meio de uma sequência de confirmações,
+      // sem depender de fechar e reabrir o app.
+      setInterval(() => renovarSubscription(reg), 20 * 1000);
       // Verifica na hora se há uma versão nova do app, em vez de esperar
       // o navegador checar sozinho (o que pode levar até 24h).
       reg.update();
