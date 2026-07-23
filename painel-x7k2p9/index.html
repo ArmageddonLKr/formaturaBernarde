@@ -237,6 +237,17 @@ document.getElementById('refresh-btn').addEventListener('click', loadGuestList);
 
 loadGuestList();
 
+// Atualiza a lista sozinha, na hora, quando alguém confirma — sem precisar
+// tocar em "Atualizar lista" ou reabrir o painel.
+if(supabaseClient){
+  supabaseClient
+    .channel('confirmacoes-realtime')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'confirmacoes' }, () => {
+      loadGuestList();
+    })
+    .subscribe();
+}
+
 // ==== Notificações push (Web Push API) ====
 // Chave publica VAPID: segura para expor no cliente, é assim que a Web Push funciona.
 const VAPID_PUBLIC_KEY = 'BDp5tBBRmAiz03ZfjKKut3URwqCZjpWXOqFKy_bH9U6nAoX_xLBrQiSCsAL9OYGG5vA7KkZJeTr1sc71sWvMWnU';
@@ -324,16 +335,26 @@ if('serviceWorker' in navigator){
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').then(async (reg) => {
       if('PushManager' in window){
-        const existing = await reg.pushManager.getSubscription();
-        if(existing){
-          try{
+        try{
+          let sub = await reg.pushManager.getSubscription();
+          if(!sub && Notification.permission === 'granted'){
+            // A permissão já foi concedida antes, mas a assinatura em si
+            // expirou (acontece sozinho, sobretudo com conexão instável) —
+            // renova na hora, sem precisar que a pessoa clique em nada,
+            // já que a permissão do navegador não precisa ser pedida de novo.
+            sub = await reg.pushManager.subscribe({
+              userVisibleOnly: true,
+              applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+            });
+          }
+          if(sub){
             // Re-sincroniza com o Supabase — o navegador pode ter uma
             // assinatura local que nunca chegou a ser salva no banco.
-            await salvarSubscription(existing);
+            await salvarSubscription(sub);
             setNotifBtnState(true);
-          }catch(err){
-            console.error('Não foi possível re-sincronizar a assinatura de push existente', err);
           }
+        }catch(err){
+          console.error('Não foi possível renovar/re-sincronizar a assinatura de push', err);
         }
       }
       // Verifica na hora se há uma versão nova do app, em vez de esperar
