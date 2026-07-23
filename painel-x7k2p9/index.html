@@ -271,10 +271,25 @@ async function ativarNotificacoes(){
       return;
     }
     const reg = await navigator.serviceWorker.ready;
-    const sub = await reg.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
-    });
+    let sub;
+    try{
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+      });
+    }catch(subErr){
+      // Se já existe uma assinatura registrada com uma chave VAPID diferente
+      // (de um teste antigo, por exemplo), o subscribe() acima falha com
+      // "applicationServerKey already exists". Cancela a antiga e tenta de
+      // novo com a chave atual.
+      const existing = await reg.pushManager.getSubscription();
+      if(!existing) throw subErr;
+      await existing.unsubscribe();
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+      });
+    }
     const subJson = sub.toJSON();
     const { error } = await supabaseClient.from('push_subscriptions').upsert({
       endpoint: subJson.endpoint,
@@ -284,7 +299,7 @@ async function ativarNotificacoes(){
     setNotifBtnState(true);
   }catch(err){
     setNotifBtnState(false);
-    alert('Não foi possível ativar as notificações agora.');
+    alert('Não foi possível ativar as notificações agora: ' + (err && err.message ? err.message : err));
     console.error(err);
   }
 }
