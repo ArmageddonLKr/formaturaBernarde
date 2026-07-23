@@ -1,5 +1,6 @@
-const CACHE_NAME = 'painel-bernard-v5';
-const APP_SHELL = ['./', './index.html', './manifest.json', '../assets/icons/icon-192.png', '../assets/icons/icon-512.png'];
+const CACHE_NAME = 'painel-bernard-v6';
+const APP_SHELL = ['./', './index.html', './manifest.json', '../assets/icons/icon-192.png', '../assets/icons/icon-512.png', '../assets/vendor/supabase-js-2.110.8.js'];
+const APP_SHELL_URLS = APP_SHELL.map((p) => new URL(p, self.registration.scope).href);
 
 // Marca se já existia um service worker ativo antes deste — só nesse caso
 // é uma ATUALIZAÇÃO de verdade. Numa instalação nova (primeira visita),
@@ -35,7 +36,7 @@ self.addEventListener('activate', (event) => {
 // o painel recebe as atualizações do site sozinho, sem precisar reinstalar.
 self.addEventListener('fetch', (event) => {
   const req = event.request;
-  if (req.method !== 'GET' || !APP_SHELL.some((p) => req.url.endsWith(p.replace('./', '')))) {
+  if (req.method !== 'GET' || !APP_SHELL_URLS.includes(req.url)) {
     event.respondWith(fetch(req));
     return;
   }
