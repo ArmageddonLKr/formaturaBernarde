@@ -237,12 +237,13 @@ document.getElementById('refresh-btn').addEventListener('click', loadGuestList);
 
 loadGuestList();
 
-// Atualiza a lista sozinha, na hora, quando alguém confirma — sem precisar
-// tocar em "Atualizar lista" ou reabrir o painel.
+// Atualiza a lista sozinha, na hora, sempre que confirmacoes muda (alguém
+// confirma, ou uma confirmação é editada/removida) — sem precisar tocar em
+// "Atualizar lista" ou reabrir o painel.
 if(supabaseClient){
   supabaseClient
     .channel('confirmacoes-realtime')
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'confirmacoes' }, () => {
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'confirmacoes' }, () => {
       loadGuestList();
     })
     .subscribe();
