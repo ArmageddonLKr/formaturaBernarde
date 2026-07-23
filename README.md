@@ -4,7 +4,7 @@ Site estático (GitHub Pages) com convite público + formulário de confirmaçã
 
 - **Evento:** Engenharia de Produção – UFPI, 08/08/2026 (sábado), 19:00/19:30, Auditório Tupperware, Avenida Frei Serafim, 1967.
 - **Banco de dados:** Supabase — já conectado (projeto `fvnwhqelqwoppuhkvpww`), tabelas criadas, RLS configurado e credenciais já preenchidas nos dois HTMLs.
-- **Aviso ao Bernard:** notificação push direto no app do painel (PWA) — sem e-mail. Função já publicada, falta só configurar as chaves VAPID como secret (passo 2).
+- **Aviso ao Bernard:** notificação push direto no app do painel (PWA) — já funcionando (VAPID e webhook configurados). Há também um canal reserva por e-mail (via Resend), já com o webhook ligado — falta só a chave da API (passo 2b) pra ativar de vez.
 
 ## Estrutura
 
@@ -17,7 +17,10 @@ Site estático (GitHub Pages) com convite público + formulário de confirmaçã
 /assets/icons/              → ícone do app (monograma "B") em vários tamanhos, usado no manifest e como favicon
 /supabase/migrations/0001_confirmacoes.sql     → schema da tabela de confirmações + RLS (já aplicado)
 /supabase/migrations/0002_push_subscriptions.sql → schema das assinaturas de push + RLS (já aplicado)
+/supabase/migrations/0004_push_subscriptions_select_policy.sql → policy de SELECT que faltava pro upsert de assinaturas funcionar (já aplicado)
+/supabase/migrations/0005_notify_resend_webhook.sql → webhook do canal de e-mail de reforço (já aplicado)
 /supabase/functions/notify-push/index.ts       → Edge Function que envia a notificação push a cada confirmação (já publicada)
+/supabase/functions/notify-resend/index.ts     → Edge Function que envia o e-mail de reforço a cada confirmação (já publicada, falta só a chave da API — passo 2b)
 ```
 
 ## 1. Supabase (já feito)
@@ -73,6 +76,24 @@ A extensão `pg_net` (necessária pro recurso de Webhooks aparecer no painel) j�
 
 Pronto — a partir daí, toda vez que alguém confirmar presença, uma notificação chega no dispositivo dele, com o nome, se vai comparecer e a quantidade de pessoas. Ele pode ativar em mais de um dispositivo (cada um vira uma assinatura separada).
 
+> **Sobre a confiabilidade do push:** notificação push depende do navegador manter uma assinatura válida e da permissão continuar concedida — se o Bernard negar a permissão sem querer, ou se o dispositivo ficar muito tempo com internet instável, a assinatura pode expirar (o Google invalida sozinho). O painel já resincroniza a assinatura automaticamente sempre que é aberto, então o hábito de abrir o painel de vez em quando já cobre a maior parte dos casos. Para um reforço que não depende de nada disso, veja o e-mail de reforço abaixo (passo 2b).
+
+## 2b. E-mail de reforço (opcional, mas recomendado)
+
+Como notificação push tem essas limitações inerentes do navegador (não é bug, é como a Web Push funciona), há uma Edge Function extra (`notify-resend`) que manda um **e-mail** ao Bernard a cada confirmação, como reforço — e-mail não depende de o navegador estar aberto, de permissão, nem da conexão no momento exato. O webhook que a aciona **já está configurado**; falta só a chave da API do [Resend](https://resend.com) (serviço de envio de e-mail, tem plano gratuito):
+
+1. Crie uma conta grátis em [resend.com](https://resend.com) (leva ~2 minutos, só precisa de e-mail).
+2. No painel do Resend, vá em **API Keys** → **Create API Key** e copie a chave gerada (começa com `re_`).
+3. Configure como secret da função:
+
+```bash
+supabase secrets set RESEND_API_KEY=re_sua_chave_aqui --project-ref fvnwhqelqwoppuhkvpww
+```
+
+(Ou pelo painel do Supabase: **Edge Functions → notify-resend → Secrets**.)
+
+Por padrão, o remetente é `onboarding@resend.dev` (funciona no plano gratuito do Resend sem precisar verificar domínio próprio) e o destinatário é `bernardejorge52@gmail.com`. Pra trocar qualquer um dos dois, configure também `NOTIFY_FROM_EMAIL` e/ou `NOTIFY_TO_EMAIL` como secrets, do mesmo jeito.
+
 ## 3. Publicar no GitHub Pages
 
 1. Faça push deste repositório para o GitHub (branch `main`).
@@ -90,5 +111,6 @@ Pronto — a partir daí, toda vez que alguém confirmar presença, uma notifica
 - [x] Painel admin instalável como PWA (ícone, nome e tela cheia próprios do Bernard)
 - [x] Nenhum link do site público aponta para o admin
 - [x] Tabelas, RLS e credenciais do Supabase já configuradas e conectadas
-- [ ] Notificação push configurada (Edge Function já publicada — falta só definir os secrets VAPID e o webhook, passo 2)
-- [x] README com passo a passo de: Supabase, notificação push, subir no GitHub Pages
+- [x] Notificação push configurada e testada (VAPID + webhook já configurados, PR corrigiu bug de nome de variável que quebrava o carregamento do Supabase)
+- [ ] E-mail de reforço configurado (webhook já ligado — falta só a chave da API do Resend, passo 2b)
+- [x] README com passo a passo de: Supabase, notificação push, e-mail de reforço, subir no GitHub Pages
