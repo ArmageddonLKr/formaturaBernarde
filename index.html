@@ -120,13 +120,15 @@
 </style>
 </head>
 <body>
-<div class="js-error-banner" id="js-error-banner">
-  Algo deu errado ao carregar a página. Puxe a tela pra baixo pra atualizar, ou feche e abra de novo.
-</div>
+<div class="js-error-banner" id="js-error-banner"></div>
 <script>
-  window.addEventListener('error', function(){
+  window.addEventListener('error', function(e){
     var el = document.getElementById('js-error-banner');
-    if(el) el.style.display = 'block';
+    if(!el) return;
+    var detalhe = e && e.message ? e.message : 'erro desconhecido';
+    if(e && e.filename){ detalhe += ' (' + e.filename.split('/').pop() + ':' + e.lineno + ')'; }
+    el.textContent = 'Algo deu errado: ' + detalhe + '. Puxe a tela pra baixo pra atualizar, ou feche e abra de novo.';
+    el.style.display = 'block';
   });
 </script>
 <div class="wrap">
@@ -176,13 +178,8 @@
   <footer>Minha formatura · 08 de agosto de 2026</footer>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-  if(typeof window.supabase === 'undefined'){
-    document.write('<script src="https://unpkg.com/@supabase/supabase-js@2"><\/script>');
-  }
-</script>
-<script>
+// ==== Botões: ligados de cara, sem depender de nenhuma rede/CDN ====
 let attending = null;
 let qty = 1;
 
@@ -203,15 +200,33 @@ document.getElementById('btn-no').addEventListener('click', function(){ setAtten
 document.getElementById('qty-minus').addEventListener('click', function(){ changeQty(-1); });
 document.getElementById('qty-plus').addEventListener('click', function(){ changeQty(1); });
 
-// ==== Credenciais do Supabase (projeto já criado) ====
+// ==== Supabase: carregado à parte, de forma assíncrona, com CDN alternativo.
+// Sem document.write (o Chrome bloqueia esse truque em conexões lentas/2G,
+// o que pode ter sido parte do problema). Enquanto isso não termina, os
+// botões acima já funcionam normalmente. ====
 const SUPABASE_URL = 'https://fvnwhqelqwoppuhkvpww.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2bndocWVscXdvcHB1aGt2cHd3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMzMTEzNTEsImV4cCI6MjA5ODg4NzM1MX0.g5vZxug1pqydYKLhtXEKiBEM7b6Q20m4M93OePw0jJU';
 let supabase = null;
-try{
-  supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-}catch(err){
-  console.error('Não foi possível iniciar a conexão com o Supabase', err);
+
+function loadScript(src){
+  return new Promise(function(resolve, reject){
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = resolve;
+    s.onerror = function(){ reject(new Error('Falha ao carregar ' + src)); };
+    document.head.appendChild(s);
+  });
 }
+
+(typeof window.supabase !== 'undefined'
+  ? Promise.resolve()
+  : loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2')
+      .catch(function(){ return loadScript('https://unpkg.com/@supabase/supabase-js@2'); })
+).then(function(){
+  supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+}).catch(function(err){
+  console.error('Não foi possível carregar/iniciar o Supabase', err);
+});
 
 document.getElementById('rsvp-form').addEventListener('submit', async function(e){
   e.preventDefault();
