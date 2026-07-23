@@ -328,35 +328,43 @@ async function ativarNotificacoes(){
 
 document.getElementById('notif-btn').addEventListener('click', ativarNotificacoes);
 
+// Garante que existe uma assinatura de push válida e salva no Supabase.
+// Chamada ao abrir o painel E de tempos em tempos enquanto ele fica aberto
+// (a assinatura pode expirar sozinha, sobretudo com conexão instável — já
+// vimos isso acontecer no meio de uma sequência de confirmações). Se a
+// permissão já foi concedida antes, renova sem precisar de nenhum clique.
+async function renovarSubscription(reg){
+  if(!('PushManager' in window)) return;
+  try{
+    let sub = await reg.pushManager.getSubscription();
+    if(!sub && Notification.permission === 'granted'){
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+      });
+    }
+    if(sub){
+      // Re-sincroniza com o Supabase — o navegador pode ter uma assinatura
+      // local que nunca chegou a ser salva no banco.
+      await salvarSubscription(sub);
+      setNotifBtnState(true);
+    }
+  }catch(err){
+    console.error('Não foi possível renovar/re-sincronizar a assinatura de push', err);
+  }
+}
+
 // Registra o service worker só depois que a página terminar de carregar,
 // pra não competir por rede/tempo com o carregamento do Supabase (o que
 // já causou uma corrida de tempo estranha em teste automatizado).
 if('serviceWorker' in navigator){
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').then(async (reg) => {
-      if('PushManager' in window){
-        try{
-          let sub = await reg.pushManager.getSubscription();
-          if(!sub && Notification.permission === 'granted'){
-            // A permissão já foi concedida antes, mas a assinatura em si
-            // expirou (acontece sozinho, sobretudo com conexão instável) —
-            // renova na hora, sem precisar que a pessoa clique em nada,
-            // já que a permissão do navegador não precisa ser pedida de novo.
-            sub = await reg.pushManager.subscribe({
-              userVisibleOnly: true,
-              applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
-            });
-          }
-          if(sub){
-            // Re-sincroniza com o Supabase — o navegador pode ter uma
-            // assinatura local que nunca chegou a ser salva no banco.
-            await salvarSubscription(sub);
-            setNotifBtnState(true);
-          }
-        }catch(err){
-          console.error('Não foi possível renovar/re-sincronizar a assinatura de push', err);
-        }
-      }
+      await renovarSubscription(reg);
+      // Confere de novo a cada 2 minutos, enquanto o painel ficar aberto —
+      // pega uma assinatura que expire no meio de uma sequência de
+      // confirmações, sem depender de fechar e reabrir o app.
+      setInterval(() => renovarSubscription(reg), 2 * 60 * 1000);
       // Verifica na hora se há uma versão nova do app, em vez de esperar
       // o navegador checar sozinho (o que pode levar até 24h).
       reg.update();
