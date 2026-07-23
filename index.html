@@ -111,9 +111,24 @@
   @media (max-width: 480px){
     section{ padding: 36px 18px; }
   }
+
+  .js-error-banner{
+    display:none; position: sticky; top:0; z-index: 999;
+    background: var(--danger); color: #2a1710; text-align:center;
+    font-size: 13px; padding: 10px 16px; line-height: 1.4;
+  }
 </style>
 </head>
 <body>
+<div class="js-error-banner" id="js-error-banner">
+  Algo deu errado ao carregar a página. Puxe a tela pra baixo pra atualizar, ou feche e abra de novo.
+</div>
+<script>
+  window.addEventListener('error', function(){
+    var el = document.getElementById('js-error-banner');
+    if(el) el.style.display = 'block';
+  });
+</script>
 <div class="wrap">
 
   <div class="hero">
