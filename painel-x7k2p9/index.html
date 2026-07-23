@@ -255,6 +255,22 @@ function setNotifBtnState(active){
   btn.disabled = active;
 }
 
+// Salva (ou re-sincroniza) a assinatura de push no Supabase. Extraída à
+// parte porque o navegador pode achar que "já está inscrito" (existe uma
+// assinatura local) mesmo que ela nunca tenha sido salva no banco — por
+// exemplo, se uma tentativa anterior falhou depois do subscribe() do
+// navegador mas antes de gravar no Supabase. Sem isso, o botão mostrava
+// "Notificações ativadas ✓" mesmo com a tabela `push_subscriptions` vazia,
+// e nenhuma notificação real era enviada.
+async function salvarSubscription(sub){
+  const subJson = sub.toJSON();
+  const { error } = await supabaseClient.from('push_subscriptions').upsert({
+    endpoint: subJson.endpoint,
+    keys: subJson.keys
+  }, { onConflict: 'endpoint' });
+  if(error) throw error;
+}
+
 async function ativarNotificacoes(){
   if(!('serviceWorker' in navigator) || !('PushManager' in window)){
     alert('Este navegador não suporta notificações push.');
@@ -290,12 +306,7 @@ async function ativarNotificacoes(){
         applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
       });
     }
-    const subJson = sub.toJSON();
-    const { error } = await supabaseClient.from('push_subscriptions').upsert({
-      endpoint: subJson.endpoint,
-      keys: subJson.keys
-    }, { onConflict: 'endpoint' });
-    if(error) throw error;
+    await salvarSubscription(sub);
     setNotifBtnState(true);
   }catch(err){
     setNotifBtnState(false);
@@ -314,7 +325,16 @@ if('serviceWorker' in navigator){
     navigator.serviceWorker.register('sw.js').then(async (reg) => {
       if('PushManager' in window){
         const existing = await reg.pushManager.getSubscription();
-        if(existing) setNotifBtnState(true);
+        if(existing){
+          try{
+            // Re-sincroniza com o Supabase — o navegador pode ter uma
+            // assinatura local que nunca chegou a ser salva no banco.
+            await salvarSubscription(existing);
+            setNotifBtnState(true);
+          }catch(err){
+            console.error('Não foi possível re-sincronizar a assinatura de push existente', err);
+          }
+        }
       }
       // Verifica na hora se há uma versão nova do app, em vez de esperar
       // o navegador checar sozinho (o que pode levar até 24h).
